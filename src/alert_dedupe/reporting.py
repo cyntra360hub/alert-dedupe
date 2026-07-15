@@ -51,23 +51,39 @@ def _send_event(config: Config, payload: dict[str, Any], poster: Poster) -> dict
     return poster(url, body, headers)
 
 
-def digest_outcome(digest: Digest, escalate_threshold: int) -> str:
-    """Maps to the AiOps Enabler `task_completed` outcome enum
-    (success | failure | escalated) -- escalated when any group's size
-    (a burst of duplicate alerts for the same underlying issue) reaches
-    the configured threshold, a proxy for "this needs a human's attention
-    now", not just "there were alerts"."""
-    if digest.max_group_size >= escalate_threshold:
-        return "escalated"
-    return "success"
+def findings_summary(digest: Digest, escalate_threshold: int) -> str | None:
+    """A compact, human-readable summary of a completed dedupe run, for
+    the AiOps Enabler event's `external_ref` field (the only freeform
+    field the events API offers). None when there were no alerts at all
+    to report on."""
+    if digest.total_alerts == 0:
+        return None
+    large = [g for g in digest.groups if g.count >= escalate_threshold]
+    parts = [f"{digest.total_groups} group(s) from {digest.total_alerts} alert(s)"]
+    if large:
+        parts.append(f"{len(large)} large group(s) (>={escalate_threshold})")
+    return "; ".join(parts)[:255]
 
 
 def report_run(
-    config: Config, digest: Digest, poster: Poster = post_signed
+    config: Config,
+    digest: Digest | None,
+    error: str | None = None,
+    poster: Poster = post_signed,
 ) -> dict[str, Any] | None:
     """Report one alert-dedupe run as a signed task_started/task_completed
     event pair. Returns the platform's task_completed response, or None
-    if reporting is disabled."""
+    if reporting is disabled.
+
+    `outcome` is `success` whenever the run actually completed --
+    **including** when it groups a large, noisy burst of alerts, since
+    detecting that is this agent doing its job, not a failure. `outcome`
+    is `failure` only when `error` is given, meaning the run itself
+    crashed (e.g. a malformed webhook file) before it could produce a
+    digest at all -- see `cli.py`, which is the only caller that ever
+    passes `error`. Findings (or the error) go in `external_ref`, the
+    events API's only freeform field.
+    """
     if not config.report_enabled:
         return None
 
@@ -76,14 +92,17 @@ def report_run(
 
     _send_event(config, {"event_type": "task_started", "task_id": task_id}, poster)
     duration_ms = int((time.monotonic() - started) * 1000)
-    return _send_event(
-        config,
-        {
-            "event_type": "task_completed",
-            "task_id": task_id,
-            "outcome": digest_outcome(digest, config.escalate_threshold),
-            "duration_ms": duration_ms,
-            "category": "alert-triage",
-        },
-        poster,
-    )
+    payload: dict[str, Any] = {
+        "event_type": "task_completed",
+        "task_id": task_id,
+        "outcome": "failure" if error else "success",
+        "duration_ms": duration_ms,
+        "category": "alert-triage",
+    }
+    if error:
+        payload["external_ref"] = error[:255]
+    elif digest is not None:
+        summary = findings_summary(digest, config.escalate_threshold)
+        if summary:
+            payload["external_ref"] = summary
+    return _send_event(config, payload, poster)

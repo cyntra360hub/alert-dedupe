@@ -79,7 +79,7 @@ then set `"format": "my-source"` in that source's files.
 | Variable | Default | Meaning |
 |---|---|---|
 | `ALERT_DEDUPE_INPUT_DIR` | bundled sample feeds | directory of webhook-format JSON files |
-| `ALERT_DEDUPE_ESCALATE_THRESHOLD` | `5` | a group at/above this size is flagged `[ESCALATE]` and reported as `escalated` |
+| `ALERT_DEDUPE_ESCALATE_THRESHOLD` | `5` | a group at/above this size is flagged `[ESCALATE]` in the CLI report and mentioned in the AiOps Enabler `external_ref` (does not affect `outcome` — see below) |
 
 Copy `.env.example` to `.env` to set these locally; `.env` is gitignored
 and never committed.
@@ -112,9 +112,16 @@ ALERT_DEDUPE_AGENT_SECRET=...
 ```
 
 With both set, each run sends a signed `task_started` / `task_completed`
-event pair to `POST /api/v1/events`, with `outcome` set to `escalated`
-when any group reaches `ALERT_DEDUPE_ESCALATE_THRESHOLD`, otherwise
-`success`.
+event pair to `POST /api/v1/events`. `outcome` is `success` whenever the
+run actually completed — **including** when it groups a large, noisy
+burst of alerts (at/above `ALERT_DEDUPE_ESCALATE_THRESHOLD`), since
+detecting that is this agent doing its job, not a failure. `outcome` is
+`failure` only when the run itself crashed before producing a digest at
+all (e.g. a malformed webhook file) — the CLI catches that, still sends
+a `task_completed` event with `outcome=failure` and the error message in
+`external_ref`, and exits non-zero. On a successful run, `external_ref`
+instead carries a compact summary, e.g.
+`"6 group(s) from 11 alert(s); 1 large group(s) (>=5)"`.
 
 ### README badge
 
