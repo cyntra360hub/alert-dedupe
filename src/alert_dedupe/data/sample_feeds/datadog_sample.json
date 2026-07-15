@@ -1,0 +1,37 @@
+{
+  "format": "datadog",
+  "events": [
+    {
+      "id": "dd-1",
+      "title": "CPU throttling detected",
+      "alert_type": "warning",
+      "text": "Container CPU usage sustained above limit",
+      "date_epoch_ms": 1752483000000,
+      "tags": ["service:worker-pool", "env:prod"]
+    },
+    {
+      "id": "dd-2",
+      "title": "CPU throttling detected",
+      "alert_type": "warning",
+      "text": "Container CPU usage sustained above limit",
+      "date_epoch_ms": 1752483300000,
+      "tags": ["service:worker-pool", "env:prod"]
+    },
+    {
+      "id": "dd-3",
+      "title": "CPU throttling detected",
+      "alert_type": "warning",
+      "text": "Container CPU usage sustained above limit",
+      "date_epoch_ms": 1752483600000,
+      "tags": ["service:worker-pool", "env:prod"]
+    },
+    {
+      "id": "dd-4",
+      "title": "Deploy succeeded",
+      "alert_type": "success",
+      "text": "worker-pool deployed version 1.42.0",
+      "date_epoch_ms": 1752483900000,
+      "tags": ["service:worker-pool", "env:prod"]
+    }
+  ]
+}

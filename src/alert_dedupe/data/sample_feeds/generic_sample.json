@@ -1,0 +1,37 @@
+{
+  "format": "generic",
+  "alerts": [
+    {
+      "id": "gen-1",
+      "source": "in-house-monitor",
+      "title": "High memory usage on api-server-3",
+      "severity": "warning",
+      "service": "api-server",
+      "timestamp": "2026-07-14T10:00:00Z"
+    },
+    {
+      "id": "gen-2",
+      "source": "in-house-monitor",
+      "title": "High memory usage on api-server-3",
+      "severity": "warning",
+      "service": "api-server",
+      "timestamp": "2026-07-14T10:05:00Z"
+    },
+    {
+      "id": "gen-3",
+      "source": "in-house-monitor",
+      "title": "  High   memory usage on api-server-3  ",
+      "severity": "warning",
+      "service": "api-server",
+      "timestamp": "2026-07-14T10:10:00Z"
+    },
+    {
+      "id": "gen-4",
+      "source": "in-house-monitor",
+      "title": "Disk usage above 90% on db-primary",
+      "severity": "critical",
+      "service": "database",
+      "timestamp": "2026-07-14T10:02:00Z"
+    }
+  ]
+}

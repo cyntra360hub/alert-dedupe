@@ -1,0 +1,23 @@
+name: Scheduled run
+
+on:
+  schedule:
+    # Every 30 minutes, offset by :18/:48 so the five sibling agents
+    # (cert-sentinel, status-watch, ci-triage, alert-dedupe, backup-audit)
+    # don't all hit aiopsenabler.com in the same minute.
+    - cron: "18,48 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - run: alert-dedupe
+        env:
+          ALERT_DEDUPE_AGENT_KEY_ID: ${{ secrets.ALERT_DEDUPE_AGENT_KEY_ID }}
+          ALERT_DEDUPE_AGENT_SECRET: ${{ secrets.ALERT_DEDUPE_AGENT_SECRET }}
