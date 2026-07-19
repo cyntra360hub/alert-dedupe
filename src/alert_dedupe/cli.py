@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 
 from alert_dedupe.config import load_config
 from alert_dedupe.dedupe import Digest, build_digest
@@ -22,6 +23,7 @@ def _print_report(digest: Digest, escalate_threshold: int) -> None:
 
 
 def main() -> int:
+    run_started = time.monotonic()
     config = load_config()
 
     # Load+process is the only step that can genuinely "error out" (a
@@ -46,7 +48,7 @@ def main() -> int:
 
     if config.report_enabled:
         try:
-            report_run(config, digest, error)
+            report_run(config, digest, error, run_started=run_started)
             print("Reported run to AiOps Enabler.")
         except Exception as exc:  # noqa: BLE001
             print(f"AiOps Enabler reporting failed (non-fatal): {exc}", file=sys.stderr)

@@ -26,12 +26,12 @@ def test_findings_summary_none_for_empty_digest():
 
 def test_findings_summary_below_threshold_has_no_large_group_mention():
     summary = findings_summary(_digest(2), escalate_threshold=5)
-    assert summary == "1 group(s) from 2 alert(s)"
+    assert summary == "swept 2 alert(s) -- 1 group(s)"
 
 
 def test_findings_summary_at_threshold_mentions_large_group():
     summary = findings_summary(_digest(5), escalate_threshold=5)
-    assert summary == "1 group(s) from 5 alert(s); 1 large group(s) (>=5)"
+    assert summary == "swept 5 alert(s) -- 1 group(s); 1 large group(s) (>=5)"
 
 
 def test_report_disabled_returns_none():
@@ -60,7 +60,7 @@ def test_large_noisy_group_is_still_success_with_external_ref():
     report_run(config, _digest(3), poster=poster)
     second_body = json.loads(poster.calls[1][1])
     assert second_body["outcome"] == "success"
-    assert second_body["external_ref"] == "1 group(s) from 3 alert(s); 1 large group(s) (>=3)"
+    assert second_body["external_ref"] == "swept 3 alert(s) -- 1 group(s); 1 large group(s) (>=3)"
 
 
 def test_empty_digest_is_success_without_external_ref():
@@ -85,3 +85,23 @@ def test_reporting_error_carries_status_and_detail():
     err = ReportingError(422, '{"detail": "bad request"}')
     assert err.status_code == 422
     assert "bad request" in err.detail
+
+
+def test_duration_ms_is_never_zero():
+    poster = _FakePoster()
+    config = Config(report_enabled=True, agent_key_id="ak_test", agent_secret="s3cret")
+    report_run(config, _digest(1), poster=poster)
+    second_body = json.loads(poster.calls[1][1])
+    assert isinstance(second_body["duration_ms"], int)
+    assert second_body["duration_ms"] >= 1
+
+
+def test_duration_ms_reflects_real_elapsed_run_time():
+    import time
+
+    poster = _FakePoster()
+    config = Config(report_enabled=True, agent_key_id="ak_test", agent_secret="s3cret")
+    run_started = time.monotonic() - 2.5
+    report_run(config, _digest(1), poster=poster, run_started=run_started)
+    second_body = json.loads(poster.calls[1][1])
+    assert second_body["duration_ms"] >= 2500

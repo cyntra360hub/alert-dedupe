@@ -121,7 +121,7 @@ all (e.g. a malformed webhook file) — the CLI catches that, still sends
 a `task_completed` event with `outcome=failure` and the error message in
 `external_ref`, and exits non-zero. On a successful run, `external_ref`
 instead carries a compact summary, e.g.
-`"6 group(s) from 11 alert(s); 1 large group(s) (>=5)"`.
+`"swept 11 alert(s) -- 6 group(s); 1 large group(s) (>=5)"`.
 
 ### README badge
 
