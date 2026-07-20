@@ -51,15 +51,32 @@ def _send_event(config: Config, payload: dict[str, Any], poster: Poster) -> dict
     return poster(url, body, headers)
 
 
+def _pluralize(n: int, singular: str, plural: str | None = None) -> str:
+    return f"{n} {singular if n == 1 else (plural or singular + 's')}"
+
+
 def findings_summary(digest: Digest, escalate_threshold: int) -> str | None:
-    """A compact, human-readable summary of a completed dedupe run, for
-    the AiOps Enabler event's `external_ref` field (the only freeform
-    field the events API offers). None when there were no alerts at all
-    to report on."""
+    """A short, human-readable findings summary for the AiOps Enabler
+    event's `details` field -- what actually renders on the agent's
+    public pulse/profile activity. Names only the single largest group
+    plus overall counts, rather than every group. None when there were
+    no alerts at all to report on."""
+    if digest.total_alerts == 0:
+        return None
+    largest = max(digest.groups, key=lambda g: g.count)
+    group_word = _pluralize(digest.total_groups, "group")
+    alert_word = _pluralize(digest.total_alerts, "alert")
+    return f"grouped {alert_word} into {group_word} -- e.g. {largest.title} ({largest.count}x)"[:500]
+
+
+def technical_summary(digest: Digest, escalate_threshold: int) -> str | None:
+    """The fuller run-level detail (total groups/alerts, and how many
+    groups crossed the escalation threshold) for the event's legacy
+    `external_ref` field."""
     if digest.total_alerts == 0:
         return None
     large = [g for g in digest.groups if g.count >= escalate_threshold]
-    parts = [f"swept {digest.total_alerts} alert(s) -- {digest.total_groups} group(s)"]
+    parts = [f"{digest.total_groups} group(s) from {digest.total_alerts} alert(s)"]
     if large:
         parts.append(f"{len(large)} large group(s) (>={escalate_threshold})")
     return "; ".join(parts)[:255]
@@ -115,5 +132,8 @@ def report_run(
     elif digest is not None:
         summary = findings_summary(digest, config.escalate_threshold)
         if summary:
-            payload["external_ref"] = summary
+            payload["details"] = summary
+        technical = technical_summary(digest, config.escalate_threshold)
+        if technical:
+            payload["external_ref"] = technical
     return _send_event(config, payload, poster)

@@ -3,7 +3,7 @@ import json
 from alert_dedupe.config import Config
 from alert_dedupe.dedupe import build_digest
 from alert_dedupe.models import Alert
-from alert_dedupe.reporting import ReportingError, findings_summary, report_run
+from alert_dedupe.reporting import ReportingError, findings_summary, report_run, technical_summary
 
 
 class _FakePoster:
@@ -24,14 +24,19 @@ def test_findings_summary_none_for_empty_digest():
     assert findings_summary(_digest(0), escalate_threshold=5) is None
 
 
-def test_findings_summary_below_threshold_has_no_large_group_mention():
+def test_findings_summary_names_the_largest_group():
     summary = findings_summary(_digest(2), escalate_threshold=5)
-    assert summary == "swept 2 alert(s) -- 1 group(s)"
+    assert summary == "grouped 2 alerts into 1 group -- e.g. Same (2x)"
 
 
-def test_findings_summary_at_threshold_mentions_large_group():
-    summary = findings_summary(_digest(5), escalate_threshold=5)
-    assert summary == "swept 5 alert(s) -- 1 group(s); 1 large group(s) (>=5)"
+def test_technical_summary_below_threshold_has_no_large_group_mention():
+    summary = technical_summary(_digest(2), escalate_threshold=5)
+    assert summary == "1 group(s) from 2 alert(s)"
+
+
+def test_technical_summary_at_threshold_mentions_large_group():
+    summary = technical_summary(_digest(5), escalate_threshold=5)
+    assert summary == "1 group(s) from 5 alert(s); 1 large group(s) (>=5)"
 
 
 def test_report_disabled_returns_none():
@@ -50,9 +55,9 @@ def test_report_enabled_sends_started_then_completed():
     assert kinds == ["task_started", "task_completed"]
 
 
-def test_large_noisy_group_is_still_success_with_external_ref():
+def test_large_noisy_group_is_still_success_with_details_and_external_ref():
     # A burst of duplicate alerts is a successful detection, not a
-    # failure -- the finding goes in external_ref, not outcome.
+    # failure -- the finding goes in `details`/`external_ref`, not outcome.
     poster = _FakePoster()
     config = Config(
         report_enabled=True, agent_key_id="ak_test", agent_secret="s3cret", escalate_threshold=3
@@ -60,16 +65,18 @@ def test_large_noisy_group_is_still_success_with_external_ref():
     report_run(config, _digest(3), poster=poster)
     second_body = json.loads(poster.calls[1][1])
     assert second_body["outcome"] == "success"
-    assert second_body["external_ref"] == "swept 3 alert(s) -- 1 group(s); 1 large group(s) (>=3)"
+    assert second_body["details"] == "grouped 3 alerts into 1 group -- e.g. Same (3x)"
+    assert second_body["external_ref"] == "1 group(s) from 3 alert(s); 1 large group(s) (>=3)"
 
 
-def test_empty_digest_is_success_without_external_ref():
+def test_empty_digest_is_success_without_details_or_external_ref():
     poster = _FakePoster()
     config = Config(report_enabled=True, agent_key_id="ak_test", agent_secret="s3cret")
     report_run(config, _digest(0), poster=poster)
     second_body = json.loads(poster.calls[1][1])
     assert second_body["outcome"] == "success"
     assert "external_ref" not in second_body
+    assert "details" not in second_body
 
 
 def test_error_reports_failure_with_error_in_external_ref():

@@ -79,7 +79,7 @@ then set `"format": "my-source"` in that source's files.
 | Variable | Default | Meaning |
 |---|---|---|
 | `ALERT_DEDUPE_INPUT_DIR` | bundled sample feeds | directory of webhook-format JSON files |
-| `ALERT_DEDUPE_ESCALATE_THRESHOLD` | `5` | a group at/above this size is flagged `[ESCALATE]` in the CLI report and mentioned in the AiOps Enabler `external_ref` (does not affect `outcome` — see below) |
+| `ALERT_DEDUPE_ESCALATE_THRESHOLD` | `5` | a group at/above this size is flagged `[ESCALATE]` in the CLI report and reflected in the AiOps Enabler `details`/`external_ref` fields (does not affect `outcome` — see below) |
 
 Copy `.env.example` to `.env` to set these locally; `.env` is gitignored
 and never committed.
@@ -119,9 +119,12 @@ detecting that is this agent doing its job, not a failure. `outcome` is
 `failure` only when the run itself crashed before producing a digest at
 all (e.g. a malformed webhook file) — the CLI catches that, still sends
 a `task_completed` event with `outcome=failure` and the error message in
-`external_ref`, and exits non-zero. On a successful run, `external_ref`
-instead carries a compact summary, e.g.
-`"swept 11 alert(s) -- 6 group(s); 1 large group(s) (>=5)"`.
+`external_ref`, and exits non-zero. On a successful run, a short,
+human-readable summary goes in `details` — what actually renders on
+your agent's public pulse/profile activity — e.g. `"grouped 11 alerts
+into 6 groups -- e.g. 'API latency spike' (4x)"`. The fuller run-level
+detail goes in the legacy `external_ref` field instead, e.g. `"6
+group(s) from 11 alert(s); 1 large group(s) (>=5)"`.
 
 ### README badge
 
